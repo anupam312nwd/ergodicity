@@ -1,3 +1,9 @@
+# project customed
+*.png
+*.vscode/
+*.DS_Store
+*sketch/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
