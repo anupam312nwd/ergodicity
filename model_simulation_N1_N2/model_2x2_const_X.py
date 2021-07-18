@@ -1,7 +1,8 @@
+import random
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import random
-import matplotlib.pyplot as plt
 
 # initialize N1, N2 : number of vehicles in region 1 and 2
 
