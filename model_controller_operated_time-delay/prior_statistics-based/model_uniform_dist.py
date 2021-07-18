@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy import integrate, optimize
 from scipy.optimize.zeros import bisect
+from tqdm import tqdm
 
 
 def uniform_pdf(x, lower_bd=20, upper_bd=120):
@@ -16,27 +17,24 @@ def uniform_pdf(x, lower_bd=20, upper_bd=120):
         return 0
 
 
-def find_critical_point(alpha=2, beta=3, lower_bd=-5, upper_bd=300):
-    func = (
-        lambda x: beta * integrate.quad(uniform_pdf, -float("inf"), x)[0]
-        - alpha * integrate.quad(uniform_pdf, x, float("inf"))[0]
-    )
-    return optimize.bisect(
+def get_critical_point_cdf_expectation(alpha=2, beta=3, lower_bd=20, upper_bd=120):
+    pdf = lambda x: uniform_pdf(x, lower_bd=lower_bd, upper_bd=upper_bd)
+    cdf = lambda x: integrate.quad(pdf, lower_bd, x)[0]
+    expectation_region_1 = lambda x: integrate.quad(
+        lambda y: y * pdf(y), -float("inf"), x
+    )[0]
+    expectation_region_2 = lambda x: integrate.quad(
+        lambda y: y * pdf(y), x, float("inf")
+    )[0]
+    func = lambda x: beta * cdf(x) * expectation_region_1(x) - alpha * (
+        1 - cdf(x)
+    ) * expectation_region_2(x)
+    cp = optimize.bisect(
         func,
-        lower_bd,
-        upper_bd,
+        lower_bd - 5,
+        upper_bd + 5,
     )
-
-
-def get_expectation_region_1_2(upper=80):
-    cp = find_critical_point(upper_bd=80)
-    expectation_region_1 = integrate.quad(
-        lambda x: x * uniform_pdf(x), -float("inf"), cp
-    )[0]
-    expectation_region_2 = integrate.quad(
-        lambda x: x * uniform_pdf(x), cp, float("inf")
-    )[0]
-    return expectation_region_1, expectation_region_2
+    return cp, cdf(cp), expectation_region_1(cp), expectation_region_2(cp)
 
 
 def get_probability(*args):
@@ -48,55 +46,131 @@ def generate_simulation(N1=125, N2=375, total_time=10, alpha=1, beta=1):
     lst_N1 = []
     lst_N2 = []
     lst_ratio = []
+    lst_traffic_ratio = []
     lst_time = []
     mu = 30
     time = 0
     lower_bound = 20
     upper_bound = 120
-
-    exp_reg_1, exp_reg_2 = get_expectation_region_1_2()
+    region_1_entry = 10 * alpha  # initialize for a starting point
+    region_2_entry = 10 * beta
+    cp, cdf, exp_reg_1, exp_reg_2 = get_critical_point_cdf_expectation(
+        alpha=alpha, beta=beta, lower_bd=lower_bound, upper_bd=upper_bound
+    )
+    entry_probability = cdf, 1 - cdf
     car_estimate = np.random.uniform(lower_bound, upper_bound)
-
     while time < total_time:
         time += np.random.exponential(1 / mu)
-        X = random.choices([1, 2], [alpha / (alpha + beta), beta / (alpha + beta)])[0]
-
+        X = random.choices([1, 2], entry_probability)[0]
         if X == 1:
             N1 += 1
+            region_1_entry += 1
         else:
             N2 += 1
-
-        Y = random.choices([1, 2], get_probability(N1 / exp_reg_1, N2 / exp_reg_2))[0]
+            region_2_entry += 1
+        exit_probability = get_probability(N1 / exp_reg_1, N2 / exp_reg_2)
+        Y = random.choices([1, 2], exit_probability)[0]
         if Y == 1:
             N1 -= 1
         else:
             N2 -= 1
-
         lst_N1.append(N1)
         lst_N2.append(N2)
         lst_time.append(time)
         lst_ratio.append(N1 / N2)
-    return lst_time, lst_N1, lst_N2, lst_ratio
+        lst_traffic_ratio.append(region_1_entry / region_2_entry)
+    return cdf, lst_time, lst_N1, lst_N2, lst_ratio, lst_traffic_ratio
 
 
-if __name__ == "__main__":
-    lst_time, lst_N1, lst_N2, lst_ratio = generate_simulation(
-        N1=200, N2=200, total_time=200, alpha=1, beta=1
-    )
-
-    fig, axes = plt.subplots(1, 2)
-    axes[0].plot(lst_time, lst_N1, label="N1")
-    axes[0].plot(lst_time, lst_N2, label="N2")
-    axes[0].set_xlabel("time")
-    axes[0].set_ylabel("N1 N2")
-    axes[0].legend()
-    axes[1].plot(lst_time, lst_ratio)
-    axes[1].set_xlabel("time")
-    axes[1].set_ylabel("ratio")
+def save_plots(lst_time, lst_N1, lst_N2, lst_ratio, lst_traffic_ratio):
+    fig, axes = plt.subplots(2, 2, figsize=(17, 17))
+    axes[0, 0].plot(lst_time, lst_N1, label="N1")
+    axes[0, 0].plot(lst_time, lst_N2, label="N2")
+    axes[0, 0].set_xlabel("time")
+    axes[0, 0].set_ylabel("N1 N2")
+    axes[0, 0].set_title("Number of Cars in region 1 and region 2")
+    axes[0, 0].legend()
+    axes[0, 1].plot(lst_time, lst_ratio, label="load ratio")
+    axes[0, 1].set_xlabel("time")
+    axes[0, 1].set_ylabel("ratio")
+    axes[0, 1].set_title("# cars ratio in region 1 over region 2")
+    axes[0, 1].legend()
+    axes[1, 0].plot(lst_time, lst_traffic_ratio, label="traffic ratio")
+    axes[1, 0].set_title("traffic ratio in region 1 over region 2")
+    axes[1, 0].legend()
     plt.legend()
     # plt.savefig("./uniform_dist_plots/N1_N2_model.png")
     dir_path = os.path.dirname(os.path.abspath(__file__))
     dir_plot = os.path.join(dir_path, "plots/")
     Path(dir_plot).mkdir(parents=True, exist_ok=True)
-    plt.savefig(os.path.join(dir_plot, "N1_N2_model.png"))
-    plt.show()
+    plt.savefig(
+        os.path.join(dir_plot, f"prior_stat_model_alpha_{alpha}_beta_{beta}.png")
+    )
+
+
+if __name__ == "__main__":
+    alpha = 1
+    beta = 1
+    list_alpha_beta = [
+        (1, 1),
+        (1, 2),
+        (2, 1),
+        (1, 3),
+        (3, 1),
+        (2, 3),
+        (3, 2),
+        (1, 4),
+        (1, 5),
+        (1, 6),
+        (1, 7),
+        (2, 5),
+        (2, 7),
+        (4, 3),
+        (4, 1),
+        (5, 1),
+        (1, 8),
+        (1, 9),
+        (1, 10),
+        (1, 11),
+        (1, 12),
+        (6, 1),
+        (7, 1),
+        (8, 1),
+        (1, 13),
+        (1, 14),
+        (1, 15),
+        (1, 18),
+        (1, 20),
+        (1, 25),
+    ]
+
+    dir_path = os.path.dirname(os.path.abspath(__file__))
+    log_file = os.path.join(dir_path, "log_file.log")
+
+    if not Path(log_file).is_file():
+        with open(log_file, "w+") as f:
+            f.write("load_ratio,traffic_ratio\n")
+
+    for alpha, beta in tqdm(list_alpha_beta):
+        (
+            cdf,
+            lst_time,
+            lst_N1,
+            lst_N2,
+            lst_ratio,
+            lst_traffic_ratio,
+        ) = generate_simulation(
+            N1=1500, N2=1500, total_time=1000, alpha=alpha, beta=beta
+        )
+        save_plots(
+            lst_time=lst_time,
+            lst_N1=lst_N1,
+            lst_N2=lst_N2,
+            lst_ratio=lst_ratio,
+            lst_traffic_ratio=lst_traffic_ratio,
+        )
+
+        print(f"plot saved for alpha = {alpha}, beta = {beta}!")
+
+        with open(log_file, "a+") as f:
+            f.write(f"{alpha/beta:.3},{cdf/(1-cdf):.3}\n")
