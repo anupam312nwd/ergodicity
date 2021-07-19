@@ -26,15 +26,18 @@ def get_critical_point_cdf_expectation(alpha=2, beta=3, lower_bd=20, upper_bd=12
     expectation_region_2 = lambda x: integrate.quad(
         lambda y: y * pdf(y), x, float("inf")
     )[0]
-    func = lambda x: beta * cdf(x) * expectation_region_1(x) - alpha * (
-        1 - cdf(x)
-    ) * expectation_region_2(x)
+    func = lambda x: beta * expectation_region_1(x) - alpha * expectation_region_2(x)
     cp = optimize.bisect(
         func,
         lower_bd - 5,
         upper_bd + 5,
     )
-    return cp, cdf(cp), expectation_region_1(cp), expectation_region_2(cp)
+    return (
+        cp,
+        cdf(cp),
+        expectation_region_1(cp) / cdf(cp),
+        expectation_region_2(cp) / (1 - cdf(cp)),
+    )
 
 
 def get_probability(*args):
@@ -61,6 +64,8 @@ def generate_simulation(N1=125, N2=375, total_time=10, alpha=1, beta=1):
     car_estimate = np.random.uniform(lower_bound, upper_bound)
     while time < total_time:
         time += np.random.exponential(1 / mu)
+
+        """entry process"""
         X = random.choices([1, 2], entry_probability)[0]
         if X == 1:
             N1 += 1
@@ -68,6 +73,8 @@ def generate_simulation(N1=125, N2=375, total_time=10, alpha=1, beta=1):
         else:
             N2 += 1
             region_2_entry += 1
+
+        """exit process"""
         exit_probability = get_probability(N1 / exp_reg_1, N2 / exp_reg_2)
         Y = random.choices([1, 2], exit_probability)[0]
         if Y == 1:
@@ -101,7 +108,7 @@ def save_plots(lst_time, lst_N1, lst_N2, lst_ratio, lst_traffic_ratio):
     plt.legend()
     # plt.savefig("./uniform_dist_plots/N1_N2_model.png")
     dir_path = os.path.dirname(os.path.abspath(__file__))
-    dir_plot = os.path.join(dir_path, "plots/")
+    dir_plot = os.path.join(dir_path, "plots_after_normalization/")
     Path(dir_plot).mkdir(parents=True, exist_ok=True)
     plt.savefig(
         os.path.join(dir_plot, f"prior_stat_model_alpha_{alpha}_beta_{beta}.png")
@@ -145,7 +152,7 @@ if __name__ == "__main__":
     ]
 
     dir_path = os.path.dirname(os.path.abspath(__file__))
-    log_file = os.path.join(dir_path, "log_file.log")
+    log_file = os.path.join(dir_path, "log_file_after_normalization.log")
 
     if not Path(log_file).is_file():
         with open(log_file, "w+") as f:
