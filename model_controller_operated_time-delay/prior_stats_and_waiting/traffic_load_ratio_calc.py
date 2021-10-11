@@ -13,46 +13,7 @@ from scipy.optimize.zeros import bisect
 from tqdm import tqdm
 
 from traffic_simulation import shifted_exponential_pdf, uniform_pdf
-
-
-def uniform_pdf(x, loc=20, scale=100):
-    lower_bd = loc
-    upper_bd = loc + scale
-    if lower_bd <= x <= upper_bd:
-        return 1 / (upper_bd - lower_bd)
-    else:
-        return 0
-
-
-def shifted_exponential_pdf(x, loc, scale):
-    lower_bd = loc
-    mu = 1 / scale
-    if lower_bd <= x:
-        return mu * math.exp(-mu * (x - lower_bd))
-    else:
-        return 0
-
-
-def get_critical_point(rv, alpha=1, beta=1):
-    a = rv.ppf(0.01)
-    b = rv.ppf(0.99)
-    expect_1 = lambda x: integrate.quad(lambda y: y * rv.pdf(y), -float("inf"), x)[0]
-    expect_2 = lambda x: integrate.quad(lambda y: y * rv.pdf(y), x, float("inf"))[0]
-    func = lambda x: beta * expect_1(x) - alpha * expect_2(x)
-    c = optimize.bisect(func, a, b)
-    cdf_c = rv.cdf(c)
-    return c, cdf_c, expect_1(c) / cdf_c, expect_2(c) / (1 - cdf_c)
-
-
-def get_critical_pt_cdf_expect(dist_pdf, a, b, alpha=1, beta=1, **kwargs):
-    pdf = lambda x: dist_pdf(x, **kwargs)
-    cdf = lambda x: integrate.quad(pdf, a, x)[0]
-    expect_1 = lambda x: integrate.quad(lambda y: y * pdf(y), -float("inf"), x)[0]
-    expect_2 = lambda x: integrate.quad(lambda y: y * pdf(y), x, float("inf"))[0]
-    func = lambda x: beta * expect_1(x) - alpha * expect_2(x)
-    c = optimize.bisect(func, a, b)
-    cdf_c = cdf(c)
-    return c, cdf_c, expect_1(c) / cdf_c, expect_2(c) / (1 - cdf_c)
+from utils import uniform_pdf, get_critical_point, get_critical_pt_cdf_expect
 
 
 def plot_traffic_vs_load_ratio():

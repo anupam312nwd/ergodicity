@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -20,6 +21,7 @@ def save_plots(
     axes[1].set_ylabel("ratio")
     axes[1].set_title("# cars ratio in region 1 over region 2")
     axes[1].legend()
+
     # plt.legend()
     tr = cdf / (1 - cdf)
     fig.suptitle(f"Parameters: alpha: {alpha}, beta: {beta}\n Traffic Ratio: {tr:5.3}")
@@ -28,3 +30,10 @@ def save_plots(
     Path(dir_plot).mkdir(parents=True, exist_ok=True)
     file_name = f"{model}_{dist}_alpha_{alpha}_beta_{beta}.png"
     plt.savefig(os.path.join(dir_plot, file_name))
+
+
+if __name__ == "__main__":
+    dir_path = os.path.dirname(os.path.abspath(__file__))
+    df = pd.read_csv(os.path.join(dir_path, "traffic_ratio_vs_scales_weibull.csv"))
+    df.plot(x="scales", y="traffic_ratio", kind="scatter")
+    plt.show()

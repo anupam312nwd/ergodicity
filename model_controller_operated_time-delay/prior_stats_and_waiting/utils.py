@@ -1,8 +1,10 @@
 import math
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from scipy import integrate, optimize, stats
 from scipy.optimize.zeros import bisect
 from tqdm import tqdm
@@ -96,12 +98,29 @@ if __name__ == "__main__":
     loc = 20
     scale = 100
     # rv = stats.expon(loc=loc, scale=scale)
-    rv = stats.uniform(loc=loc, scale=scale)
-    la = [1, 1, 1, 1, 1]
-    c = n_get_critical_point(rv=rv, la=la)
-    traffic_ratio = traffic_ratio_given_critical_pts(rv, c)
-    load_ratio = get_load_ratio(la)
-    rounded = lambda x, y: [round(val, y) for val in x]
-    print(f"critical points: {rounded(c,3)}")
-    print(f"traffic_ratio: {rounded(traffic_ratio, 3)}")
-    print(f"load_ratio: {rounded(load_ratio, 3)}")
+    # rv = stats.uniform(loc=loc, scale=scale)
+
+    # la = [1, 1, 1, 1, 1]
+    # c = n_get_critical_point(rv=rv, la=la)
+    # traffic_ratio = traffic_ratio_given_critical_pts(rv, c)
+    # load_ratio = get_load_ratio(la)
+    # rounded = lambda x, y: [round(val, y) for val in x]
+    # print(f"critical points: {rounded(c,3)}")
+    # print(f"traffic_ratio: {rounded(traffic_ratio, 3)}")
+    # print(f"load_ratio: {rounded(load_ratio, 3)}")
+
+    """traffic ratio for weibull dist as a function of scale"""
+    # scales = [20, 40, 60, 80, 100]
+    # traffic_ratio = []
+    # for scale in tqdm(scales):
+    #     rv = stats.weibull_min(c=1, loc=loc, scale=scale)
+    #     c, _, _, _ = get_critical_point(rv)
+    #     tr = traffic_ratio_given_critical_pts(rv, [c])[0]
+    #     traffic_ratio.append(tr)
+    # dir_path = os.path.dirname(os.path.abspath(__file__))
+    # dct = {"scales": scales, "traffic_ratio": traffic_ratio}
+    # df = pd.DataFrame.from_dict(dct)
+    # df.to_csv(
+    #     os.path.join(dir_path, "traffic_ratio_vs_scales_weibull.csv"), index=False
+    # )
+    # print(df)
